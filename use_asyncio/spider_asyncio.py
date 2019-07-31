@@ -3,6 +3,20 @@ import aiohttp
 import json
 from typing import Tuple
 import time
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s  %(message)s',
+    filename='asyncio.log',
+)
+logger = logging.getLogger(__name__)
+
+
+def pLog(s):
+    print(s)
+    logger.info(s)
+
 
 user_headers = {
     'Accept': 'application/json, text/plain, */*',
@@ -35,12 +49,15 @@ async def fetch(session, base_url, params, headers):
 
 async def main(max_num: int):
     async with aiohttp.ClientSession() as session:
+        tasks = []
         for start in range(0, max_num, 20):
+            print(f'scheduled task for {start}')
             api_params['start'] = start
-            tasks = fetch(session, api_endpoint, api_params, user_headers)
-        await asyncio.gather(tasks)
+            tasks.append(fetch(session, api_endpoint, api_params.copy(), user_headers))
+        await asyncio.gather(*tasks)
 
     # dump to /ans.json
+    content.sort(key=lambda x: x['rate'], reverse=True)
     to_dump = {
         "data": content,
     }
@@ -49,11 +66,18 @@ async def main(max_num: int):
 
     print("done!")
 
-start_time = time.perf_counter()
-max_num = 20
-asyncio.run(main(max_num))
-end_time = time.perf_counter()
-with open("perf.txt", "w", encoding='utf-8') as f:
-    alert = f'Asyncio version spider uses {end_time - start_time}s to {max_num} movies.'
-    f.write(alert)
-    print(alert)
+
+def export(max_num):
+    start_time = time.perf_counter()
+    asyncio.run(main(max_num))
+    end_time = time.perf_counter()
+    with open("perf.txt", "a", encoding='utf-8') as f:
+        alert = f'Asyncio version spider takes {end_time - start_time}s to fetch {max_num} movies.'
+        f.write(alert)
+        print(alert)
+
+    return end_time - start_time
+
+
+if __name__ == '__main__':
+    export(20)
